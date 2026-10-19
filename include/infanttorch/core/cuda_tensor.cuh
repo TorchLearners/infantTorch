@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "tensor.hpp"
+#include <infanttorch/core/tensor.hpp>
 
 //CUDA_CHECK is good practice to ensure that that an expression in CUDA proceeds successfully
 #ifndef CUDA_CHECK
