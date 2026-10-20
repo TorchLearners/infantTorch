@@ -5,7 +5,7 @@
 
 //takes in logins T in of size N, outputs softmax of size O
 template<typename U, int K>
-__global__ void softmax_good(const U* __restrict__  in, U* __restrict__ out, size_t ROWS, size_t N){
+__global__ void softmax_good(const U* __restrict__  in, U* __restrict__ out, const size_t ROWS, const size_t N){
     size_t row = (blockDim.x * blockIdx.x + threadIdx.x) / 32; //32 threads per single row
     if(row >= ROWS) return;
 
@@ -76,7 +76,7 @@ __global__ void softmax_good(const U* __restrict__  in, U* __restrict__ out, siz
 
 //remmeber N is super big
 template<typename U>
-__global__ void softmax_bad(const U* __restrict__ in, U* __restrict__ out, size_t M, size_t C, size_t N){
+__global__ void softmax_bad(const U* __restrict__ in, U* __restrict__ out, const size_t M, const size_t C, const size_t N){
     __shared__ U warp_vals[32];
     size_t row = blockIdx.x;
     if(row >= (M*C)) return;
