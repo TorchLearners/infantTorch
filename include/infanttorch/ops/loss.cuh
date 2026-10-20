@@ -7,6 +7,7 @@
 #include <infanttorch/detail/launch.hpp>
 
 template<typename T>
+//if we do cross entropy
 NodePtr<T> softmax_cross_entropy(NodePtr<T> logits, const std::vector<int>& labels) {
     const int M = static_cast<int>(logits->value.shape[0]);
     const int C = static_cast<int>(logits->value.shape[1]);
@@ -26,15 +27,18 @@ NodePtr<T> softmax_cross_entropy(NodePtr<T> logits, const std::vector<int>& labe
     launch_softmax_ce_forward<T>(logits->value.data, dlabels.get(), probs->data, dlossp.get(), M, C);
     //dloss IS NOT DERIVATIVE, IT IS DEVICE LOSS, ITS CONFUSING BUT IM LAZY AND I UNDERSTAND IT
     auto out = std::make_shared<Node<T>>();
-    out->value = CudaTensor<T>(std::vector<long long>{ 1 }, true);
+    out->value = CudaTensor<T>(std::vector<long long>{ 1 }, logits->value.requires_grad);
     out->op = "softmax_ce";
-    out->children = { logits };
+    if(out->value.requires_grad) out->children = { logits };
     launch_mean_reduce_kernel<T>(dlossp.get(), out->value.data, M);
 
-    Node<T>* o = out.get(); Node<T>* pl = logits.get();
 
-    out->backward_fn = [o, pl, probs, dlabels, M, C]() {
-        launch_softmax_ce_backward<T>(o->value.grad, probs->data, dlabels.get(), pl->value.grad, M, C);
-        };
+    if(out->value.requires_grad){
+        Node<T>* o = out.get(); Node<T>* pl = logits.get();
+
+        out->backward_fn = [o, pl, probs, dlabels, M, C]() {
+            launch_softmax_ce_backward<T>(o->value.grad, probs->data, dlabels.get(), pl->value.grad, M, C);
+            };
+    }
     return out;
 }

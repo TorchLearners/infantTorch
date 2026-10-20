@@ -25,7 +25,7 @@ __global__ void maxpool_kernel(const U* __restrict__ mat, U* __restrict__ out, i
             }
         }
         out[idx] = best;
-        argmax_cache[idx] = best_idx;
+        if(argmax_cache != nullptr)argmax_cache[idx] = best_idx;
     }
 }
 
