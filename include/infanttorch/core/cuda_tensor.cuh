@@ -36,9 +36,9 @@ struct CudaTensor {
         size = 1;
         for (const long long d : shape) size *= static_cast<size_t>(d);
         compute_strides();
-        CUDA_CHECK(cudaMalloc(&data, bytes()));
+        CUDA_CHECK(cudaMallocAsync(&data, bytes(), 0));
         if (requires_grad) {
-            CUDA_CHECK(cudaMalloc(&grad, bytes()));
+            CUDA_CHECK(cudaMallocAsync(&grad, bytes(), 0));
             zero_grad();
         }
     }
@@ -92,8 +92,8 @@ private:
             strides[i] = strides[i + 1] * static_cast<size_t>(shape[i + 1]);
     }
     void free_all() {
-        if (data) cudaFree(data);
-        if (grad) cudaFree(grad);
+        if (data) cudaFreeAsync(data, 0);
+        if (grad) cudaFreeAsync(grad, 0);
         data = grad = nullptr;
     }
     void swap(CudaTensor& o) noexcept {

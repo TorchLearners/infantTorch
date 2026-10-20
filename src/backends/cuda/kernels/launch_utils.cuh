@@ -6,6 +6,7 @@
 #include <cstddef>
 
 namespace {
+    //im js hard code this lowk for now TODO maybe make it not hardcoded
     constexpr int BLOCK = 256;
     inline unsigned grid(std::size_t n) {
         return static_cast<unsigned>((n + BLOCK - 1) / BLOCK);

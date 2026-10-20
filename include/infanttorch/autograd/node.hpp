@@ -14,8 +14,10 @@ struct Node {
     std::vector<std::shared_ptr<Node<T>>> children;
     std::function<void()> backward_fn;
     const char* op = "leaf";
+    bool no_gradient;
 
     Node() = default;
+    Node(bool no_gradient) : 
 
     void backward() {
         std::vector<Node<T>*> topo;
