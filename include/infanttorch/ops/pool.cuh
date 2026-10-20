@@ -20,8 +20,8 @@ NodePtr<T> maxpool(NodePtr<T> input, int pool) {
 
     //kept alive for backwards
     int* argmax_raw = nullptr;
-    CUDA_CHECK(cudaMalloc(&argmax_raw, sizeof(int) * (size_t)N * C * oH * oW));
-    std::shared_ptr<int> argmax_cache(argmax_raw, [](int* p) { cudaFree(p); });
+    CUDA_CHECK(cudaMallocAsync(&argmax_raw, sizeof(int) * (size_t)N * C * oH * oW, 0));
+    std::shared_ptr<int> argmax_cache(argmax_raw, [](int* p) { cudaFreeAsync(p, 0); });
 
     launch_maxpool<T>(input->value.data, out->value.data, argmax_cache.get(), N, C, H, W, pool, oH, oW);
 

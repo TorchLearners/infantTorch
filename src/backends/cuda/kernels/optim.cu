@@ -8,6 +8,8 @@ void launch_sgd_update(T* w, const T* g, T lr, std::size_t n) {
     check("sgd_update");
 }
 
+
+
 #define INSTANTIATE(T)                                                              \
     template void launch_sgd_update<T>(T*, const T*, T, std::size_t); \
 

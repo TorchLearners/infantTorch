@@ -13,14 +13,14 @@ NodePtr<T> softmax_cross_entropy(NodePtr<T> logits, const std::vector<int>& labe
 
 
     int* dlabels_raw = nullptr;
-    CUDA_CHECK(cudaMalloc(&dlabels_raw, sizeof(int) * M));
+    CUDA_CHECK(cudaMallocAsync(&dlabels_raw, sizeof(int) * M, 0));
     CUDA_CHECK(cudaMemcpy(dlabels_raw, labels.data(), sizeof(int) * M, cudaMemcpyHostToDevice));
-    std::shared_ptr<int> dlabels(dlabels_raw, [](int* p) { cudaFree(p); });
+    std::shared_ptr<int> dlabels(dlabels_raw, [](int* p) { cudaFreeAsync(p, 0); });
 
     auto probs = std::make_shared<CudaTensor<T>>(std::vector<long long>{ M, C }, false);
     T* dlossp_raw = nullptr;
-    CUDA_CHECK(cudaMalloc(&dlossp_raw, sizeof(T) * M));
-    std::shared_ptr<T> dlossp(dlossp_raw, [](T* p) { cudaFree(p); });
+    CUDA_CHECK(cudaMallocAsync(&dlossp_raw, sizeof(T) * M, 0));
+    std::shared_ptr<T> dlossp(dlossp_raw, [](T* p) { cudaFreeAsync(p, 0); });
 
     //convert raw logits into probabiltiies
     launch_softmax_ce_forward<T>(logits->value.data, dlabels.get(), probs->data, dlossp.get(), M, C);

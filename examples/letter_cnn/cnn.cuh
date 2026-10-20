@@ -93,7 +93,8 @@ struct CNN {
         CudaTensor<T> loss_and_correct_DEVICE(std::vector<long long>{ 2 }, false);
         loss_and_correct_DEVICE.zero();
         int* dLabels = nullptr;
-        CUDA_CHECK(cudaMalloc(&dLabels, sizeof(int) * BATCH_SIZE));
+        //malloc on the default stream
+        CUDA_CHECK(cudaMallocAsync(&dLabels, sizeof(int) * BATCH_SIZE, 0));
 
         for(size_t start = 0; start < data.size(); start+=BATCH_SIZE){
             size_t end = std::min(data.size(), start + BATCH_SIZE);
@@ -113,7 +114,7 @@ struct CNN {
         }
         Tensor<T> loss_and_correct_HOST = loss_and_correct_DEVICE.to_host();
         const auto& d = loss_and_correct_HOST.getData();
-        cudaFree(dLabels);
+        cudaFreeAsync(dLabels, 0);
         return {d[0]/(T)data.size(), d[1]/(T)data.size()};
     }
 
@@ -138,7 +139,7 @@ struct CNN {
         CudaTensor<T> loss_and_correct_DEVICE(std::vector<long long>{ 2 }, false);
         //device labels per batch size
         int* dLabels = nullptr;
-        CUDA_CHECK(cudaMalloc(&dLabels, sizeof(int) * BATCH_SIZE));
+        CUDA_CHECK(cudaMallocAsync(&dLabels, sizeof(int) * BATCH_SIZE, 0));
         for (size_t e = 0; e < epochs; ++e) {
             std::shuffle(idx.begin(), idx.end(), rng);
             loss_and_correct_DEVICE.zero();
@@ -182,7 +183,7 @@ struct CNN {
             }
             std::cout << "\n";
         }
-        cudaFree(dLabels);
+        cudaFreeAsync(dLabels, 0);
     }
 
     void perLetterAccuracy(Dataset& data, int numLetter = 26) {
