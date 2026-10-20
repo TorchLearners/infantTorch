@@ -3,7 +3,7 @@
 #include "launch_utils.cuh"
 
 template<typename T>
-void launch_softmax(const T* in, T* out, std::size_t M, std::size_t C, std::size_t N) {
+void launch_softmax(const T* in, T* out, const std::size_t M, const std::size_t C, const std::size_t N) {
     const std::size_t ROWS = M * C;
     const std::size_t K = (N + 31) / 32;
     const unsigned g = grid(ROWS * 32);
