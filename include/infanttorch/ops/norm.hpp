@@ -11,4 +11,5 @@ NodePtr<T> softmax(NodePtr<T> logits) {
     const int M = static_cast<int>(logits->value.shape[0]);
     const int C = static_cast<int>(logits->value.shape[1]);
     //softmax doesn't need a backwards function
+    const int N = static_cast<int>(logits -> value.shape[2]);
 }

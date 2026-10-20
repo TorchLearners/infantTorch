@@ -14,10 +14,8 @@ struct Node {
     std::vector<std::shared_ptr<Node<T>>> children;
     std::function<void()> backward_fn;
     const char* op = "leaf";
-    bool no_gradient;
 
     Node() = default;
-    Node(bool no_gradient) : 
 
     void backward() {
         std::vector<Node<T>*> topo;
@@ -49,8 +47,8 @@ template<typename T>
 using NodePtr = std::shared_ptr<Node<T>>;
 
 template<typename T>
-NodePtr<T> leaf(const Tensor<T>& h) {
+NodePtr<T> leaf(const Tensor<T>& h, bool requires_grad = true) {
     auto n = std::make_shared<Node<T>>();
-    n->value = CudaTensor<T>::from_host(h, true);
+    n->value = CudaTensor<T>::from_host(h, requires_grad);
     return n;
 }
