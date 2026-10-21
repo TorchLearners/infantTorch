@@ -187,7 +187,7 @@ struct CNN {
     }
 
     void perLetterAccuracy(Dataset& data, int numLetter = 26) {
-        std::vector<int> t otal(numLetter, 0), correct(numLetter, 0);
+        std::vector<int> total(numLetter, 0), correct(numLetter, 0);
         for (auto& [image, label] : data) {
             int pred = predict(image);
             ++total[label];

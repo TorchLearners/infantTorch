@@ -32,7 +32,7 @@ NodePtr<T> bias_add(NodePtr<T> x, NodePtr<T> b) {
     const int N = static_cast<int>(x->value.shape[1]);
 
     auto out = std::make_shared<Node<T>>();
-    out->value = CudaTensor<T>(std::vector<long long>{ M, N }, a->value.requires_grad);
+    out->value = CudaTensor<T>(std::vector<long long>{ M, N }, x->value.requires_grad);
     out->op = "bias_add";
     if(out -> value.requires_grad) out->children = { x, b };
 
