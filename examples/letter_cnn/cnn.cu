@@ -25,3 +25,4 @@ int main() {
               << " for label " << (char)('A' + data[0].second) << "\n";
     return 0;
 }
+//compile with nvcc -std=c++20 -O2 -arch=native -I include examples/letter_cnn/cnn.cu src/backends/cuda/kernels/*.cu -o letter_cnn
