@@ -26,6 +26,10 @@ inline void pad(std::vector<Complex>& input) {
 }
 
 inline std::vector<Complex> radixFFTHelper(std::vector<Complex>& F) {
+    /**
+    helper function for radix fft
+    */
+
     if (F.size() == 1) {
         return F;
     }
@@ -53,6 +57,9 @@ inline std::vector<Complex> radixFFTHelper(std::vector<Complex>& F) {
 }
 
 inline std::vector<Complex> radixFFT(std::vector<Complex>& F) {
+    /**
+    powers of 2 only
+    */
     pad(F);
     std::vector<Complex> ret = radixFFTHelper(F);
     return ret;
@@ -68,8 +75,47 @@ inline std::vector<Complex> radixIFFT(std::vector<Complex>& F) {
     return ret;
 }
 
+
+inline std::vector<Complex> bluesteinFFTHelper(std::vector<Complex>& F) {
+    /**
+    helper function for bluestein fft using radix fft!
+    */
+
+    auto A = radixFFT(a);
+    auto B = radixFFT(b);
+   
+    std::vector<Complex> product(A.size());
+    for (size_t i = 0; i < A.size(); ++i) {
+        product[i] = A[i] * B[i];
+    }
+}
+
+inline std::vector<Complex> bluesteinFFT(std::vector<Complex>& F) {
+    /**
+    any positive length
+    */
+    pad(F);
+    std::vector<Complex> ret = bluesteinFFTHelper(F);
+    return ret;
+}
+
+inline std::vector<Complex> bluesteinIFFT(std::vector<Complex>& F) {
+    for (auto& c: F) {
+        c = std::conj(c);
+    }
+
+    std::vector<Complex> ret = bluesteinFFT(F);
+    for (auto& c: ret) c = (std::conj(c) / static_cast<double>(F.size()));
+    return ret;
+}
+
 template <Numeric T>
 inline Tensor<Complex> fftND(const Tensor<T>& input) {
+    /**
+    uses bluestein
+    @param input tensor
+    @return the transformer tensor
+    */
     const auto& shape = input.getShape();
     const auto& data = input.getData();
     const auto& strides = input.getStrides();
@@ -95,7 +141,7 @@ inline Tensor<Complex> fftND(const Tensor<T>& input) {
                 multiIdx[dim] = j;
                 slice[j] = ret.get(multiIdx);
             }
-            std::vector<Complex> transformed = radixFFT(slice);
+            std::vector<Complex> transformed = bluesteinFFT(slice);
             for (size_t j = 0; j < shape[dim]; j++) {
                 multiIdx[dim] = j;
                 ret.place(multiIdx, transformed[j]);
