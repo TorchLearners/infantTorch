@@ -42,7 +42,7 @@ NodePtr<T> bias_add(NodePtr<T> x, NodePtr<T> b) {
         Node<T>* o = out.get(); Node<T>* px = x.get(); Node<T>* pb = b.get();
         out->backward_fn = [o, px, pb, M, N]() {
             launch_accumulate<T>(px->value.grad, o->value.grad, static_cast<std::size_t>(M) * N);
-            launch_bias_grad<T>(nullptr, o->value.grad, pb->value.grad, M, N);
+            launch_bias_grad<T>(nullptr, o->value.grad, pb->value.grad, M, N, false);
         };
     }
     
