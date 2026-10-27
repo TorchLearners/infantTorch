@@ -24,8 +24,8 @@ struct Linear : public Module<T> {
 
     NodePtr<T> forward(NodePtr<T> x) override {
         //so this is bad i want to like not have so many kernel launches
-        
-        NodePtr<T> y = bias_add(matmul(x, W), b);
-        return use_relu ? relu(y) : y;
+
+        NodePtr<T> y = linear_forward(x, W, b, use_relu);
+        return y;
     }
 };

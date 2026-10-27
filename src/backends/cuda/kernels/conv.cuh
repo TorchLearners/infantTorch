@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 
 // out[n,co,oh,ow] = sum ci,ki,kj in[n,ci,oh+ki,ow+kj] * filt[co,ci,ki,kj]
+
 template<typename U>
 __global__ void conv2d_forward_kernel(const U* __restrict__ in, const U* __restrict__ filt,
     U* __restrict__ out,
@@ -29,17 +30,13 @@ __global__ void conv2d_forward_kernel(const U* __restrict__ in, const U* __restr
 // dW[co,ci,ki,kj] += sum n,oh,ow in[n,ci,oh+ki,ow+kj] * dOut[n,co,oh,ow]
 
 // grid = (P, S): blockIdx.x = weight p, blockIdx.y = chunk of the R = N*oH*oW terms
-template<typename U>
-__global__ void conv2d_dW_kernel(const U* __restrict__ in, const U* __restrict__ dOut, U* __restrict__ dW,
+template<typename U, bool RELU>
+__global__ void conv2d_dW_kernel(const U* __restrict__ in, const U* __restrict__ dOut, const U* __restrict__ out, U* __restrict__ dW,
                                  int N, int Cin, int H, int W, int Cout, int K1, int K2, int oH, int oW,
                                  int chunk) {
     __shared__ U partial[256];
 
-    // TODO: decode p = blockIdx.x into (co, ci, ki, kj).
-    //       Your current kernel already does this from 'idx'; reuse those four lines with p instead.
-
-    // TODO: R, r0, r1 exactly as in the bias kernel (what is R here?)
-    const int p = blockIdx.x; //blockIdx.y = "chunk "
+    const int p = blockIdx.x;
     const int R = N * oH * oW;
     const int r0 = blockIdx.y * chunk;
     const int r1 = min(R, r0 + chunk);
@@ -63,31 +60,35 @@ __global__ void conv2d_dW_kernel(const U* __restrict__ in, const U* __restrict__
 
         const U x = in[n * (Cin * H * W) + cin * (H * W) + (oh + ki) * W + (ow + kj)];
         const U g = dOut[n * (Cout * oH * oW) + co * (oH * oW) + oh * oW + ow];
-
-        acc += x * g;
+        if constexpr (RELU){
+            acc += (out[n * (Cout * oH * oW) + co * (oH * oW) + oh * oW + ow] > 0 ? x*g : U(0));
+        }else{
+            acc += x*g;
+        }
     }
 
     partial[threadIdx.x] = acc;
     __syncthreads();
-    //256 block dim?
+
     for(int stride = blockDim.x / 2; stride > 0; stride/=2){
         if(threadIdx.x < stride){
             partial[threadIdx.x] += partial[threadIdx.x + stride];
         }
         __syncthreads();
     }
-    // TODO: the same tree reduction as the bias kernel
+
     if(threadIdx.x == 0){
         atomicAdd(&dW[p], partial[0]); 
     }
 }
 
 // dIn[n,ci,h,w] += sum_{co,ki,kj valid} dOut[n,co,h-ki,w-kj] * filt[co,ci,ki,kj]
-template<typename U>
-__global__ void conv2d_dIn_kernel(const U* __restrict__ dOut, const U* __restrict__ filt,
+template<typename U, bool RELU>
+__global__ void conv2d_dIn_kernel(const U* __restrict__ dOut, const U* __restrict__ out, const U* __restrict__ filt,
     U* __restrict__ dIn,
     int N, int Cin, int H, int W,
     int Cout, int K1, int K2, int oH, int oW) {
+
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= N * Cin * H * W) return;
     int w = idx % W;
@@ -103,10 +104,17 @@ __global__ void conv2d_dIn_kernel(const U* __restrict__ dOut, const U* __restric
             int oh = h - ki; if (oh < 0 || oh >= oH) continue;
             for (int kj = 0; kj < K2; ++kj) {
                 int ow = w - kj; if (ow < 0 || ow >= oW) continue;
-                acc += dImg[oh * oW + ow] * f[ki * K2 + kj];
+                if constexpr (RELU){
+                    //if out is greater than 0 we take gradient otherwise we zero it
+                    acc += (out[((size_t)n * Cout + co) * oH * oW + (oh * oW + ow)] > U(0) ? dImg[oh * oW + ow] * f[ki * K2 + kj] : U(0));  
+                }else{
+                    acc += dImg[oh * oW + ow] * f[ki * K2 + kj];
+                }
+
             }
         }
     }
+
     dIn[idx] += acc;
 }
 
@@ -121,44 +129,66 @@ __global__ void conv_bias_forward_kernel(const U* __restrict__ in, const U* __re
     }
 }
 
-// dBias[c] += sum over all examples and HW (of dOut)
-// grid = (C, S): blockIdx.x = channel, blockIdx.y = which chunk of the R = N*HW terms
-template<typename U>
-__global__ void conv_bias_grad_kernel(const U* __restrict__ dOut, U* __restrict__ dBias,
+template<typename U, bool RELU>
+__global__ void conv_bias_grad_kernel(const U* __restrict__ dOut, const U* __restrict__ out, U* __restrict__ dBias,
                                       int N, int C, int HW, int chunk) {
     
-    __shared__ U partial[256];                 // one slot per thread; must match the block size
+    __shared__ U partial[256];
 
-    const int c  = blockIdx.x;                 // which channel bias this block works on
-    const int R  = N * HW;                     // total in this bias's sum
-    const int r0 = blockIdx.y * chunk;         // this block's chunk: terms [r0, r1)
+    const int c  = blockIdx.x;
+    const int R  = N * HW;
+    const int r0 = blockIdx.y * chunk;
     const int r1 = min(r0 + chunk, R);
 
-    // ---- step 1: each thread sums a strided slice of the chunk
     U acc = U(0);
     for (int r = r0 + threadIdx.x; r < r1; r += blockDim.x) {
-        // TODO: decode r into (n, hw). Term r is the r-th value of channel c across all images.
-        //       Hint: there are HW values per image.
 
-        int n  = r / HW; //there are HW values per example thus this is our example 
-        int hw = r % HW;  //mod to get the pixel within the channel at the current example
-        acc += dOut[n * C * HW  + c * HW + hw];
+        int n  = r / HW;
+        int hw = r % HW; 
+        if constexpr (RELU){
+            acc += (out[n * C * HW  + c * HW + hw] > U(0) ? dOut[n * C * HW  + c * HW + hw] : U(0));
+        }else{
+            acc += dOut[n * C * HW  + c * HW + hw];
+        }
     }
 
-    // ---- step 2: tree reduction of the 256 partial sums in shared memory
     partial[threadIdx.x] = acc;
+
     __syncthreads();
     for (int stride = blockDim.x / 2; stride > 0; stride /= 2) {
         if (threadIdx.x < stride) {
-            // TODO: one line. Thread t adds the value 'stride' slots away into its own slot.
             partial[threadIdx.x] += partial[threadIdx.x + stride];
         }
-        __syncthreads();                       // outside the if: every thread must reach it
+        __syncthreads();
     }
 
-    // ---- step 3: one thread adds the block's total into the output
     if (threadIdx.x == 0) {
-        // TODO: atomicAdd the block total (which slot holds it now?) into dBias[c]
         atomicAdd(&dBias[c], partial[0]);
     }
 }
+
+template<typename U, bool RELU>
+__global__ void conv_forward(const U* __restrict__ in, const U* __restrict__ filt, 
+    const U* __restrict__ bias, U* __restrict__ out, int N, int Cin, int H, int W, int Cout, int K1, int K2, int oH, int oW ){
+        int idx = blockIdx.x * blockDim.x + threadIdx.x; //thread responsbile for handling out[n][cout][oh][ow]
+        if(idx >= (N * Cout * oH * oW)) return;
+        int ow = idx % oW;
+        int oh = (idx / oW) % oH;
+        int cout = (idx / (oW * oH)) % Cout;
+        int n = idx / (oW * oH * Cout);
+        U acc = bias[cout];
+
+        for(int ci = 0; ci < Cin; ci++){
+            //take cout filter
+            const U* cur_filt = filt + ((size_t)cout * Cin * K1 * K2) + ((size_t)ci * K1 * K2);
+            const U* img = in + ((size_t)n * Cin * H * W) + ((size_t) ci * H * W);
+            for(int ki = 0; ki < K1; ki++){
+                for(int kj = 0; kj < K2; kj++){
+                    acc += (cur_filt[ki * K2 + kj] * img[ (oh + ki) * W + (ow + kj)]);
+                }
+            }
+        }
+        if constexpr (RELU) acc = (acc > U(0) ? acc : U(0));
+        out[idx] = acc;
+}
+

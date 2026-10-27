@@ -12,7 +12,8 @@ template <typename T>
 struct Conv : public Module<T> {
     NodePtr<T> filters;
     NodePtr<T> bias;
-    Conv(SGD<T>& opt, long long Cin, long long Cout, long long kernelSize) {
+    bool RELU;
+    Conv(SGD<T>& opt, long long Cin, long long Cout, long long kernelSize, bool RELU = true) : RELU(RELU) {
         Tensor<T> filter(std::vector<long long> {Cout, Cin, kernelSize, kernelSize}, Init::He, Cin* kernelSize* kernelSize);
         filters = leaf(filter);
         Tensor<T> b(std::vector<long long> {Cout}, Init::Zero);
@@ -29,7 +30,7 @@ struct Conv : public Module<T> {
             so temp ptr has a ref count of 2 at end of semi colon it gets -- 
             so that ptr to the other object remains cuz its in conv_bias childrne
         */
-        NodePtr<T> y = relu(conv_bias(conv(input, filters), bias));
+        NodePtr<T> y = conv_forward(input, filters, bias, RELU);
         return y;
     }
 };

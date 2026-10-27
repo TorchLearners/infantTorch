@@ -59,3 +59,54 @@ NodePtr<T> conv_bias(NodePtr<T> x, NodePtr<T> bias) {
     
     return out;
 }
+
+
+
+
+
+
+template<typename T>
+NodePtr<T> conv_forward(NodePtr<T> input, NodePtr<T> filters, NodePtr<T> bias, bool useRELU){
+    const int N = (int)input->value.shape[0];
+    const int Cin = (int)input->value.shape[1];
+    const int H = (int)input->value.shape[2];
+    const int W = (int)input->value.shape[3];
+    const int Cout = (int)filters->value.shape[0];
+    const int K1 = (int)filters->value.shape[2];
+    const int K2 = (int)filters->value.shape[3];
+    const int oH = H - K1 + 1, oW = W - K2 + 1;
+
+    auto out = std::make_shared<Node<T>>();
+    out->value = CudaTensor<T>(std::vector<long long>{ N, Cout, oH, oW }, input->value.requires_grad);
+    out->op = useRELU ? "conv_bias_relu" : "conv_bias";
+
+    if(out->value.requires_grad) out->children = { input, filters, bias};
+
+    launch_conv_forward<T>(input->value.data, filters->value.data, bias->value.data, out->value.data,
+        N, Cin, H, W, Cout, K1, K2, oH, oW, useRELU);
+
+
+    if(out -> value.requires_grad){
+        Node<T>* o = out.get(); Node<T>* in = input.get(); Node<T>* fi = filters.get(); Node<T>* bi = bias.get();
+        if(useRELU){
+            out->backward_fn = [o, in, fi, bi, N, Cin, H, W, Cout, K1, K2, oH, oW](){
+                launch_conv_dW_RELU<T>(in->value.data, o->value.grad, o->value.data, fi->value.grad,
+                    N, Cin, H, W, Cout, K1, K2, oH, oW);
+                launch_conv_dIn_RELU<T>(o->value.grad, o->value.data, fi->value.data, in->value.grad,
+                    N, Cin, H, W, Cout, K1, K2, oH, oW);
+                launch_conv_bias_grad_RELU<T>(o->value.grad, o->value.data, bi->value.grad, N, Cout, oH*oW);
+            };
+        }else{
+            out->backward_fn = [o, in, fi, bi, N, Cin, H, W, Cout, K1, K2, oH, oW]() {
+                launch_conv_dW<T>(in->value.data, o->value.grad, fi->value.grad,
+                    N, Cin, H, W, Cout, K1, K2, oH, oW);
+                launch_conv_dIn<T>(o->value.grad, fi->value.data, in->value.grad,
+                    N, Cin, H, W, Cout, K1, K2, oH, oW);
+                launch_conv_bias_grad<T>(o->value.grad, bi->value.grad, N, Cout, oH*oW);
+            };
+        }
+    }
+
+    return out;
+
+}
