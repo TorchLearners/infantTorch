@@ -2,12 +2,13 @@
 
 We are building infantTorch to learn how to code in cuda and potentially beat PyTorch, hence the name infant torch.
 
-We are going off of ["Attention is All You Need"](https://arxiv.org/abs/1706.03762).
+For the transformer architecture, we are going off of ["Attention is All You Need"](https://arxiv.org/abs/1706.03762).
+There is also CNN code in this repo. We're going to make a great torch library and eventually implement everything!
 
 this readme is under construction!
 
 ## Flow of a transformer for reference
-A. Encoder
+### A. Encoder
 1. Input
 2. Input embedding
 3. Positional encoding
@@ -18,7 +19,7 @@ A. Encoder
     4. Addition + Norm again
 5. output to decoder
 
-B. Decoder
+### B. Decoder
 1. Output tokens so far
 2. Output embedding
 3. Positional encoding
