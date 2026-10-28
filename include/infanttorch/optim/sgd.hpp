@@ -6,9 +6,11 @@
 #include <infanttorch/autograd/node.hpp>
 #include <infanttorch/detail/launch.hpp>
 #include <infanttorch/optim/schedulers.hpp>
+#include <infanttorch/optim/optim.hpp>
+
 
 template<typename T>
-struct SGD {
+struct SGD : public optim<T> {
 //params are all the weights/biases we must walk back on and apply SGD on
     std::vector<NodePtr<T>> params;
     T lr;
@@ -23,16 +25,20 @@ struct SGD {
         lr_scheduler(std::move(sched)) {
     }
 
-    void add(NodePtr<T> p) { params.push_back(std::move(p)); }
+    void add(NodePtr<T> p) override{ 
+        params.push_back(std::move(p)); 
+    }
 
-    void zero_grad() { for (auto& p : params) p->value.zero_grad(); }
+    void zero_grad() override { 
+        for (auto& p : params) p->value.zero_grad(); 
+    }
 
-    void step() {
+    void step() override{
         for (auto& p : params)
             launch_sgd_update<T>(p->value.data, p->value.grad, lr, p->value.size);
     }
 
-    void stepEpoch() {
+    void stepEpoch() override{
         epoch++;
         lr = lr_scheduler(epoch, totalEpochs, lrMax, lrMin);
     }

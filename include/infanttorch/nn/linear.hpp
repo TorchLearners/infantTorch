@@ -4,16 +4,15 @@
 #include <infanttorch/core/tensor.hpp>
 #include <infanttorch/autograd/node.hpp>
 #include <infanttorch/nn/module.hpp>
-#include <infanttorch/optim/sgd.hpp>
+#include <infanttorch/optim/optim.hpp>
 #include <infanttorch/ops/matmul.hpp>
-#include <infanttorch/ops/activation.hpp>
 
 template<typename T>
 struct Linear : public Module<T> {
     NodePtr<T> W, b;
     bool use_relu;
 
-    Linear(SGD<T>& opt, int in, int out, bool relu = true) : use_relu(relu) {
+    Linear(optim<T>& opt, int in, int out, bool relu = true) : use_relu(relu) {
         Tensor<T> hw(std::vector<long long>{ (long long)in, (long long)out }, Init::He, in);
         Tensor<T> hb(std::vector<long long>{ (long long)out }, Init::Zero);
         W = leaf(hw);

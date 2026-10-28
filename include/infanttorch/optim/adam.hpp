@@ -6,10 +6,10 @@
 #include <infanttorch/autograd/node.hpp>
 #include <infanttorch/detail/launch.hpp>
 #include <infanttorch/optim/schedulers.hpp>
-
+#include <infanttorch/optim/optim.hpp>
 
 template<typename T>
-struct Adam{
+struct Adam : public optim<T>{
     std::vector<NodePtr<T>> params;
     std::vector<CudaTensor<T>> m, v;
     T lr;
@@ -30,7 +30,7 @@ struct Adam{
 
       }
 
-    void add(NodePtr<T> p){ 
+    void add(NodePtr<T> p) override{ 
         m.emplace_back(p->value.shape);
         m.back().zero();
         v.emplace_back(p->value.shape);
@@ -39,7 +39,7 @@ struct Adam{
     }
 
 
-    void step(){
+    void step() override{
         step_p++;
         /*void launch_adam_update(T* w, T* m, T* v, const T* g, T lr, T momentum, T decay, T eps, T step, std::size_t n){
     adam_update_kernel<T> <<<grid(n), BLOCK>>>(w, m, g, lr, momentum, decay, eps, step, n);
@@ -50,9 +50,11 @@ struct Adam{
         }
     }
 
-    void zero_grad() { for (auto& p : params) p->value.zero_grad(); }
+    void zero_grad() override { 
+        for (auto& p : params) p->value.zero_grad(); 
+    }
 
-    void stepEpoch(){
+    void stepEpoch() override{
         epoch++;
         lr = lr_scheduler(epoch, totalEpochs, lrMax, lrMin);
     }

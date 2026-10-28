@@ -65,7 +65,7 @@ struct VectorFlatten {
 template <typename T>
 struct VectorFlatten<std::vector<T>> {
     using ValueType = typename VectorFlatten<T>::ValueType;
-    static void flatten(const std::vector<T>& input, std::vector<ValueType>& data, std::vector<int>& shape) {
+    static void flatten(const std::vector<T>& input, std::vector<ValueType>& data, std::vector<long long>& shape) {
         shape.push_back((int)input.size());
         for (size_t i = 0; i < input.size(); i++) {
             if (i == 0) {
@@ -469,11 +469,11 @@ public:
         return total;
     }
 
-    static Tensor zeros(std::vector<int> shape) {
+    static Tensor zeros(std::vector<long long> shape) {
         Tensor ret(shape, Init::Zero);
         return ret;
     };
-    static Tensor ones(std::vector<int> shape) {
+    static Tensor ones(std::vector<long long> shape) {
         Tensor ret(shape, Init::One);
         return ret;
     }

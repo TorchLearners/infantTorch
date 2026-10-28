@@ -4,7 +4,7 @@
 #include <infanttorch/core/tensor.hpp>
 #include <infanttorch/autograd/node.hpp>
 #include <infanttorch/nn/module.hpp>
-#include <infanttorch/optim/sgd.hpp>
+#include <infanttorch/optim/optim.hpp>
 #include <infanttorch/ops/conv.hpp>
 #include <infanttorch/ops/activation.hpp>
 
@@ -13,7 +13,8 @@ struct Conv : public Module<T> {
     NodePtr<T> filters;
     NodePtr<T> bias;
     bool RELU;
-    Conv(SGD<T>& opt, long long Cin, long long Cout, long long kernelSize, bool RELU = true) : RELU(RELU) {
+    
+    Conv(optim<T>& opt, long long Cin, long long Cout, long long kernelSize, bool RELU = true) : RELU(RELU) {
         Tensor<T> filter(std::vector<long long> {Cout, Cin, kernelSize, kernelSize}, Init::He, Cin* kernelSize* kernelSize);
         filters = leaf(filter);
         Tensor<T> b(std::vector<long long> {Cout}, Init::Zero);
