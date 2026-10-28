@@ -13,10 +13,10 @@ NodePtr<T> softmax(NodePtr<T> logits) {
     //softmax doesn't need a backwards function
     const int N = static_cast<int>(logits -> value.shape[2]);
     
-    auto out = std::shared_ptr<Node<T>>();
+    auto out = std::make_shared<Node<T>>();
 
     //requires grad here should always be false but i digress
-    out->value = CudaTensor<T>(std::vector<long long>{M, C, N}, logits->value.require_grad);
+    out->value = CudaTensor<T>(std::vector<long long>{M, C, N}, logits->value.requires_grad);
     out->op = "softmax";
 
     launch_softmax<T> (logits->value.data, out->value.data, M, C, N);

@@ -54,7 +54,7 @@ void launch_bias_grad(const T* out, const T* gout, T* db, int M, int N, bool REL
 template<typename T>
 
 void launch_linear_forward(const T* A, const T* B, const T* bias, T* out,
-    int M, int K, int N, bool RELU){
+    int M, int N, int K, bool RELU){
     constexpr int TILE = 16;
     dim3 block(TILE, TILE);
     dim3 grid((N + TILE - 1) / TILE, (M + TILE - 1) / TILE);
