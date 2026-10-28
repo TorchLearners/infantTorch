@@ -57,7 +57,7 @@ public:
 template <typename T>
 struct VectorFlatten {
     using ValueType = T;
-    static void flatten(const T& input, std::vector<T>& data, std::vector<int>& shape) {
+    static void flatten(const T& input, std::vector<T>& data, std::vector<long long>& shape) {
         data.push_back(input);
     }
 };
@@ -72,7 +72,7 @@ struct VectorFlatten<std::vector<T>> {
                 VectorFlatten<T>::flatten(input[i], data, shape);
             }
             else {
-                std::vector<int> ignored;
+                std::vector<long long> ignored;
                 VectorFlatten<T>::flatten(input[i], data, ignored); //discard shape so we only get 1 dimension
             }
         }

@@ -19,10 +19,10 @@ __global__ void matmul_kernel(const U* __restrict__ A, const U* __restrict__ B, 
     //load memory into cache[a]
     auto load = [&](int section, int buf) {
         pipe.producer_acquire(); //acquries the buffer
-        int tCol_A = section * T + tx;
-        int tRow_B = section * T + ty;
-        U* a_dst = &A_cache[buf][ty * T + tx];
-        U* b_dst = &B_cache[buf][ty * T + tx];
+        int tCol_A = section * T + threadIdx.x;
+        int tRow_B = section * T + threadIdx.y;
+        U* a_dst = &A_cache[buf][threadIdx.y * T + threadIdx.x];
+        U* b_dst = &B_cache[buf][threadIdx.y * T + threadIdx.x];
         if (row < M && tCol_A < K) cuda::memcpy_async(a_dst, &A[row * K + tCol_A], cuda::aligned_size_t<alignof(U)>(sizeof(U)), pipe);
         else *a_dst = U(0);
         if (tRow_B < K && col < N) cuda::memcpy_async(b_dst, &B[tRow_B * N + col], cuda::aligned_size_t<alignof(U)>(sizeof(U)), pipe);
