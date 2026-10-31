@@ -41,10 +41,10 @@ __global__ void conv2d_dW_kernel(const U* __restrict__ in, const U* __restrict__
     const int r0 = blockIdx.y * chunk;
     const int r1 = min(R, r0 + chunk);
 
-    const int co = p / (Cin * K1 * K2);
-    const int cin = (p % (Cin * K1 * K2)) / (K1* K2); //p = co * (Cin * K1 * K2) + ci * (K1 * K2) + ki * K2 + kj
-    const int ki = (p % (K1*K2)) / K2;
-    const int kj = p % K2;
+    const int co = p / (Cin * K1 * K2); //8
+    const int cin = (p % (Cin * K1 * K2)) / (K1* K2); //p = co * (Cin * K1 * K2) + ci * (K1 * K2) + ki * K2 + kj this is lowk just 1 here
+    const int ki = (p % (K1*K2)) / K2; //3
+    const int kj = p % K2; //3
 
     U acc = U(0);
     /*
@@ -54,8 +54,8 @@ __global__ void conv2d_dW_kernel(const U* __restrict__ in, const U* __restrict__
     threadIdx	which thread within its block	x = 0–255
     */
     for (int r = r0 + threadIdx.x; r < r1; r+=blockDim.x) {
-        const int n  = r / (oH * oW);
-        const int oh = (r % (oH * oW)) / oW;
+        const int n  = r / (oH * oW); //loop over everything this touches
+        const int oh = (r % (oH * oW)) / oW; //this touches n * oh* ow becuase of the fact that we touch all n examples and then for each one we touch oh ow for thsi filter
         const int ow = r % oW;
 
         const U x = in[n * (Cin * H * W) + cin * (H * W) + (oh + ki) * W + (ow + kj)];
@@ -134,20 +134,16 @@ __global__ void conv_bias_grad_kernel(const U* __restrict__ dOut, U* __restrict_
     // ---- step 1: each thread sums a strided slice of the chunk
     U acc = U(0);
     for (int r = r0 + threadIdx.x; r < r1; r += blockDim.x) {
-        // TODO: decode r into (n, hw). Term r is the r-th value of channel c across all images.
-        //       Hint: there are HW values per image.
 
         int n  = r / HW; //there are HW values per example thus this is our example 
         int hw = r % HW;  //mod to get the pixel within the channel at the current example
         acc += dOut[n * C * HW  + c * HW + hw];
     }
 
-    // ---- step 2: tree reduction of the 256 partial sums in shared memory
     partial[threadIdx.x] = acc;
     __syncthreads();
     for (int stride = blockDim.x / 2; stride > 0; stride /= 2) {
         if (threadIdx.x < stride) {
-            // TODO: one line. Thread t adds the value 'stride' slots away into its own slot.
             partial[threadIdx.x] += partial[threadIdx.x + stride];
         }
         __syncthreads();                       // outside the if: every thread must reach it
@@ -155,7 +151,6 @@ __global__ void conv_bias_grad_kernel(const U* __restrict__ dOut, U* __restrict_
 
     // ---- step 3: one thread adds the block's total into the output
     if (threadIdx.x == 0) {
-        // TODO: atomicAdd the block total (which slot holds it now?) into dBias[c]
         atomicAdd(&dBias[c], partial[0]);
     }
 }
